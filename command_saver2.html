@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Команды Linux</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            margin: 0;
+            height: 100vh;
+        }
+        .form-container {
+            width: 300px;
+            padding: 20px;
+            border-right: 1px solid #ccc;
+        }
+        .results-container {
+            flex: 1;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input {
+            margin-right: 10px;
+            width: calc(100% - 20px);
+        }
+        .command-cell, .example-cell {
+            font-family: 'Courier New', Courier, monospace; /* Моношрифт для команд и примеров */
+        }
+        .delete-button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 2px 5px; /* Уменьшенный размер кнопки */
+            cursor: pointer;
+            font-size: 0.8em; /* Уменьшенный размер шрифта */
+        }
+        .copy-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 2px 5px; /* Уменьшенный размер кнопки */
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 0.8em; /* Уменьшенный размер шрифта */
+        }
+        .copy-button:active {
+            background-color: #45a049; /* Изменение цвета при нажатии */
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Сохранение команд Linux</h1>
+        <form id="commandForm">
+            <input type="text" id="command" placeholder="Введите команду" required>
+            <input type="text" id="description" placeholder="Введите описание" required>
+            <input type="text" id="example" placeholder="Введите пример" required>
+            <input type="text" id="tags" placeholder="Введите теги (через запятую)">
+            <button type="submit">Сохранить команду</button>
+        </form>
+
+        <input type="text" id="search" placeholder="Поиск по командам или тегам">
+        
+        <!-- Загрузка файла -->
+        <input type="file" id="fileInput" accept=".json">
+        <button id="loadFileButton">Загрузить файл</button>
+
+        <!-- Скачивание файла -->
+        <button id="downloadFileButton">Скачать команды</button>
+    </div>
+
+    <div class="results-container">
+        <h2>Список команд</h2>
+        <table id="results">
+            <thead>
+                <tr>
+                    <th>Команда</th>
+                    <th>Описание</th>
+                    <th>Пример</th>
+                    <th>Теги</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const commandForm = document.getElementById('commandForm');
+        const searchInput = document.getElementById('search');
+        const resultsBody = document.getElementById('resultsBody');
+        const fileInput = document.getElementById('fileInput');
+        const loadFileButton = document.getElementById('loadFileButton');
+        const downloadFileButton = document.getElementById('downloadFileButton');
+
+        let commands = [];
+
+        // Загрузка данных с сервера (или из файла)
+        function loadCommands() {
+            displayCommands(commands);
+        }
+
+        // Сохранение команды
+        commandForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const command = document.getElementById('command').value || ' '; // Заменяем undefined на пробел
+            const description = document.getElementById('description').value || ' '; // Заменяем undefined на пробел
+            const example = document.getElementById('example').value || ' '; // Заменяем undefined на пробел
+            const tags = document.getElementById('tags').value.split(',').map(tag => tag.trim()) || [' ']; // Заменяем undefined на пробел
+
+            const newCommand = { command, description, example, tags };
+
+            commands.push(newCommand);
+            displayCommands(commands);
+            commandForm.reset(); // Сброс формы после добавления
+        });
+
+        // Поиск по командам или тегам
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            const filteredCommands = commands.filter(cmd => 
+                cmd.command.toLowerCase().includes(query) || 
+                cmd.tags.some(tag => tag.toLowerCase().includes(query))
+            );
+            displayCommands(filteredCommands);
+        });
+
+        // Отображение команд в таблице
+        function displayCommands(commandsToDisplay) {
+            resultsBody.innerHTML = '';
+            commandsToDisplay.forEach((cmd, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="command-cell">${cmd.command}</td>
+                    <td>${cmd.description}</td>
+                    <td class="example-cell">${cmd.example}</td>
+                    <td>${cmd.tags.join(', ') || ' '}</td>
+                    <td>
+                        <button class="copy-button" data-command="${cmd.command}">Копировать</button>
+                        <button class="delete-button" data-index="${index}">Удалить</button>
+                    </td>
+                `;
+                resultsBody.appendChild(row);
+            });
+
+            // Добавление обработчика событий для кнопок удаления
+            const deleteButtons = document.querySelectorAll('.delete-button');
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = e.target.getAttribute('data-index');
+                    commands.splice(index, 1); // Удаление команды из массива
+                    loadCommands(); // Обновление отображения
+                });
+            });
+
+            // Добавление обработчика событий для кнопок копирования
+            const copyButtons = document.querySelectorAll('.copy-button');
+            copyButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const command = e.target.getAttribute('data-command');
+                    navigator.clipboard.writeText(command).catch(err => {
+                        console.error('Ошибка при копировании: ', err);
+                    });
+                });
+            });
+        }
+
+        // Загрузка файла
+        loadFileButton.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Пожалуйста, выберите файл.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    commands = JSON.parse(event.target.result);
+                    loadCommands();
+                } catch (error) {
+                    alert("Ошибка при загрузке файла. Убедитесь, что файл в формате JSON.");
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Скачивание файла
+        downloadFileButton.addEventListener('click', () => {
+            const blob = new Blob([JSON.stringify(commands, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'commands.json';
+            a.click();
+            URL.revokeObjectURL(url); // Освобождение памяти
+        });
+
+        // Инициализация
+        loadCommands();
+    </script>
+</body>
+</html>
